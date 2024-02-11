@@ -1,0 +1,129 @@
+﻿@using ChartJs.Blazor.Charts
+@using ChartJs.Blazor.ChartJS.Common.Properties
+@using ChartJs.Blazor.Util
+@using ChartJs.Blazor.ChartJS.PieChart
+@inject IExpenseService ExpenseService
+
+<p>@Message</p>
+
+@if (expenses == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <ChartJsPieChart @ref="_pieChartJs" Config="@_config" Width="600" Height="300"></ChartJsPieChart>
+    <div class="container">
+        <div class="row">
+            <div class="col-1">
+                <span>Income</span>
+            </div>
+            <div class="col-2">
+                <span>Expense</span>
+            </div>
+            <div class="col-3">
+                <span>Total</span>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-1">
+                <span style="font-weight:700;color:green">@string.Format($"{GetTotalIncome().ToString()}")</span>
+            </div>
+            <div class="col-2">
+                <span style="font-weight:700;color:red">@string.Format($"{GetTotalExpenses().ToString()}")</span>
+            </div>
+            <div class="col-3">
+                <span style="font-weight:700; color:@GetTotalColor()">@string.Format($"{GetTotal().ToString()}")</span>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    public IEnumerable<Expense> expenses { get; set; }
+    public string Message { get; set; }
+
+    private PieConfig _config;
+    private ChartJsPieChart _pieChartJs;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            expenses = await ExpenseService.GetAllExpenses();
+        }
+        catch (Exception ex)
+        {
+            Message = "Something went wrong..." + ex.Message;
+        }
+
+        _config = new PieConfig()
+        {
+            Options = new PieOptions
+            {
+                Title = new OptionsTitle
+                {
+                    Display = true,
+                    Text = "Expenses"
+                },
+                Responsive = true,
+                Animation = new ArcAnimation
+                {
+                    AnimateRotate = true,
+                    AnimateScale = true
+                }
+            }        };
+
+        _config.Data.Labels.AddRange(expenses.Select(c => c.Category.Name).Distinct().ToArray());
+        var pieSet = new PieDataset
+            {
+                BackgroundColor = new[] { ColorUtil.RandomColorString(), ColorUtil.RandomColorString(),
+                    ColorUtil.RandomColorString(), ColorUtil.RandomColorString() },
+                BorderWidth = 0,
+                HoverBackgroundColor = ColorUtil.RandomColorString(),
+                HoverBorderColor = ColorUtil.RandomColorString(),
+                HoverBorderWidth = 1,
+                BorderColor = "#ffffff"
+        };
+
+        pieSet.Data.AddRange(expenses.GroupBy(e => e.CategoryId)            .Select(ec => ec.Sum(c => Convert.ToDouble(c.Amount))).ToArray());        _config.Data.Datasets.Add(pieSet);    }
+
+    protected decimal GetTotalExpenses()
+    {
+        bool existsAnyExpense = expenses.Any(c => c.ExpenseType == ExpenseType.Expense);
+
+        if (!existsAnyExpense) return 0;
+
+        return expenses.Where(c => c.ExpenseType == ExpenseType.Expense)
+                       .GroupBy(i => 1)
+                       .Select(g => new
+                       {
+                           Amount = g.Sum(i => i.Amount)
+                       }).FirstOrDefault().Amount;    }
+
+    protected decimal GetTotalIncome()
+    {
+        bool existsAnyIncome = expenses.Any(c => c.ExpenseType == ExpenseType.Income);
+
+        if (!existsAnyIncome) return 0;
+
+        return expenses.Where(c => c.ExpenseType == ExpenseType.Income)
+                 .GroupBy(i => 1)
+                 .Select(g => new
+                 {
+                     Amount = g.Sum(i => i.Amount)
+                 }).FirstOrDefault().Amount;
+    }
+
+    protected decimal GetTotal()
+    {
+        return GetTotalIncome() - GetTotalExpenses();
+    }
+
+    protected string GetTotalColor()
+    {
+        return GetTotal() > 0 ? "green" : "red";
+    }
+
+}
