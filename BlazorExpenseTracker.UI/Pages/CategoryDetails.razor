@@ -1,0 +1,79 @@
+﻿@page "/categorydetails"
+@page "/categorydetails/{id:int}"
+@inject ICategoryService CategoryService
+@inject NavigationManager NavigationManager
+
+<div class="model" tabindex="-1" style="display:block" role="dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1>Category Details</h1>
+            </div>
+            <div class="modal-body">
+
+                <EditForm Model="@category" OnValidSubmit="SaveCategory">
+                    <DataAnnotationsValidator />
+                    @*     <ValidationSummary/> *@
+
+                    <table class="table">
+                        <tr>
+                            <td>Name</td>
+                            <td><input type="text" @bind="category.Name" /></td>
+                        </tr>
+                        <tr><td colspan="2"><ValidationMessage For="@(()=> category.Name)"></ValidationMessage></td></tr>
+
+                        <tr>
+                            <td colspan="2" style="text-align:center">
+                                <input type="submit" value="Save" />
+                                <input type="button" value="Cancel" @onclick="Cancel" />
+                            </td>
+
+                        </tr>
+                    </table>
+                </EditForm>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    Category category = new Category();
+
+    protected override async Task OnInitializedAsync()
+    {
+        //Solo correra cuando el id sea pasado por URI, es decir,
+        //para el caso @page "/categorydetails/{id:int}"
+        if (id > 0)
+        {
+            category = await CategoryService.GetCategoryDetails(id);
+        }
+
+        //NavigationManager.LocationChanged += LocationChanged;
+    }
+
+    protected async Task SaveCategory()
+    {
+        await CategoryService.SaveCategory(category);
+        NavigateCategories();
+    }
+
+    public void Cancel()
+    {
+        NavigateCategories();
+    }
+
+    // void LocationChanged(object sender, LocationChangedEventArgs e)
+    // {
+    //     string navigastionMethod = e.IsNavigationIntercepted ? "HTML" : "Code";
+    // }
+
+    public void NavigateCategories()
+    {
+        NavigationManager.NavigateTo("/categories");
+    }
+
+}
